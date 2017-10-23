@@ -20,7 +20,30 @@
   THE SOFTWARE.
 */
 
-/*
+/* cJSON */
+/* JSON parser in C. */
+
+/* disable warnings about old C89 functions in MSVC */
+#if !defined(_CRT_SECURE_NO_DEPRECATE) && defined(_MSC_VER)
+#define _CRT_SECURE_NO_DEPRECATE
+#endif
+
+#ifdef __GNUC__
+#pragma GCC visibility push(default)
+#endif
+#if defined(_MSC_VER)
+#pragma warning (push)
+/* disable warning about single line comments in system headers */
+#pragma warning (disable : 4001)
+#endif
+
+#include <stdio.h>
+#include <math.h>
+#include <float.h>
+#include <limits.h>
+//#include "stdafx.h"
+
+
 #ifdef ENABLE_LOCALES
 #include <locale.h>
 #endif
@@ -31,124 +54,16 @@
 #ifdef __GNUC__
 #pragma GCC visibility pop
 #endif
-*/
-
-using namespace std;
-#include <math.h>
-#include <float.h>
-#include <limits.h>
-#include <iostream>
-#include <fstream>  
-#include <streambuf>
-
-#include "stdafx.h"
-
 
 extern "C"
 {
 #include "cJSON.h"
+#include "cJSON.c"
 #include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
 }
 
-//static char  CJSON_FILE_PATH[]="R:\GitHub\cppJSONTest\cjson.json";
-#define  CJSON_FILE_PATH "R:/GitHub/cppJSONTest/cjson.json"
-
-//读文件
-char* read_string_from_file(char* filename)
-{
-    FILE * pFile;  
-    long lSize;  
-    char * buffer;  	
-    size_t result; 
-	/* 若要一个byte不漏地读入整个文件，只能采用二进制方式打开 */   
-    pFile = fopen (filename, "rb" );  
-    if (pFile==NULL)  
-    {  
-        fputs ("File error",stderr);  
-        exit (1);  
-    }  
-  
-    /* 获取文件大小 */  
-    fseek (pFile , 0 , SEEK_END);  
-    lSize = ftell (pFile);  
-    rewind (pFile);  
-  
-    /* 分配内存存储整个文件 */   
-    buffer = (char*) malloc (sizeof(char)*lSize);  
-    if (buffer == NULL)  
-    {  
-        fputs ("Memory error",stderr);   
-        exit (2);  
-    }  
-  
-    /* 将文件拷贝到buffer中 */  
-    result = fread (buffer,1,lSize,pFile);  
-    if (result != lSize)  
-    {  
-        fputs ("Reading error",stderr);  
-        exit (3);  
-    }  
-    /* 现在整个文件已经在buffer中，可由标准输出打印内容 */  
-    //printf("%s", buffer);   
-  
-    /* 结束演示，关闭文件并释放内存 */  
-    fclose (pFile);  
-    //free (buffer);  
-    return buffer;      
-}
-
-char* get_json_value_from_string(char* string,char*  key)
-{
-	char* value = "-1";
-	cJSON *json , *json_value ; 
-    // 解析数据包  
-    json = cJSON_Parse(string);  
-    if (!json)  
-    {  
-        printf("Error before: [%s]\n",cJSON_GetErrorPtr()); 
-		return value;
-    }  
-    else  
-    {  
-        // 解析开关值  
-        json_value = cJSON_GetObjectItem( json , key); 
-		if( json_value->type == cJSON_Number )  
-        {  
-            // 从valueint中获得结果  
-            itoa(json_value->valueint,value,256);
-        }  
-        else if( json_value->type == cJSON_String)
-        {  
-            // valuestring中获得结果  
-            value = json_value->valuestring;			
-        }  
-        // 释放内存空间  
-        //cJSON_Delete(json);
-		return value;
-	}
-  
-}
-
-int main(void)
-{
-    /* print the version */
-    printf("cJSON_Version: %s\n", cJSON_Version());
-	char* json_string = read_string_from_file(CJSON_FILE_PATH);
-	printf("json_string: %s\n", json_string);
-    char* json_value = get_json_value_from_string(json_string,"employees");
-	printf("json_value: %s\n", json_value);
-	int int_json_value = atoi(json_value);
-    printf("int_json_value: %d\n", int_json_value);
-	/* Now some samplecode for building objects concisely: */
-    //create_objects();    
-    return 0;
-}
-
-
-//示例demo
 /* Used by some code below as an example datatype. */
 struct record
 {
@@ -378,4 +293,15 @@ static void create_objects(void)
         exit(EXIT_FAILURE);
     }
     cJSON_Delete(root);
+}
+
+int main(void)
+{
+    /* print the version */
+    printf("Version: %s\n", cJSON_Version());
+
+    /* Now some samplecode for building objects concisely: */
+    create_objects();
+
+    return 0;
 }
