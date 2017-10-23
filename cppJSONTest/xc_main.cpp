@@ -71,13 +71,21 @@ static void OnMessage(int32_t iPeerId, EXCRNMsg eMsg, uint64_t lparam, uint64_t 
       break;
     case E_XCRN_MSG_ICE_SET_LOCAL_SDP: {
       const char* szSdp = (const char*)lparam;
-      XCFF_LOGI ("E_XCRN_MSG_ICE_SET_LOCAL_SDP PeerId=[%d] sdp=[%d]-[%s]\n", iPeerId, (int32_t)strlen(szSdp), szSdp);
+      XCFF_LOGI ("E_XCRN_MSG_ICE_SET_LOCAL_SDP PeerId=[%d] strlen(szSdp)=[%d] szSdp=[%s]\n", iPeerId, (int32_t)strlen(szSdp), szSdp);
     }
       break;
     case E_XCRN_MSG_ICE_SET_REMOTE_SDP: {
       const char* szSdp = (const char*)lparam;
-      XCFF_LOGI ("E_XCRN_MSG_ICE_SET_REMOTE_SDP PeerId=[%d] sdp=[%d]-[%s]\n", iPeerId, (int32_t)strlen(szSdp),szSdp);	  	 
+      XCFF_LOGI ("E_XCRN_MSG_ICE_SET_REMOTE_SDP iPeerId=[%d] s_iLastPeerId=[%d] strlen(szSdp)=[%d] szSdp=[%s]\n", iPeerId, s_iLastPeerId,(int32_t)strlen(szSdp),szSdp);	  	 
       
+	  if(max_PullStreamCount<1)
+	  {
+		  max_PullStreamCount=0;
+	  }
+	  else
+	  {
+		max_PullStreamCount=max_PullStreamCount;
+	  }
 	  if (iPeerId == s_iLastPeerId && s_iPullPeerCount < max_PullStreamCount) {
         /// 创建拉流
         
@@ -88,8 +96,8 @@ static void OnMessage(int32_t iPeerId, EXCRNMsg eMsg, uint64_t lparam, uint64_t 
         paramPeer.usSignalServerPort = SignalServerPort;  /// 信令服务器端口号
         strcpy (paramPeer.szRoomName, RoomId);        /// 连接的房间名称
         
-        int32_t iViewerPeerId = 0;
-		XCFF_LOGI ("E_XCRN_MSG_ICE_SET_REMOTE_SDP Create ViewerPeerPeerId=[%d] s_iPullPeerCount=[%d]\n", iViewerPeerId, s_iPullPeerCount);
+        int32_t iViewerPeerId = iPeerId;
+		XCFF_LOGI ("E_XCRN_MSG_ICE_SET_REMOTE_SDP before Create ViewerPeerPeerId=[%d] s_iPullPeerCount=[%d]\n", iViewerPeerId, s_iPullPeerCount);
         EXCRNErrno eErrno = XCRN_CreatePeer(&paramPeer, &iViewerPeerId);
         if (E_XCRN_ERRNO_SUCCESS != eErrno) {
           assert(false);
@@ -97,7 +105,7 @@ static void OnMessage(int32_t iPeerId, EXCRNMsg eMsg, uint64_t lparam, uint64_t 
         }
         s_iLastPeerId = iViewerPeerId;
         s_iPullPeerCount++;
-        XCFF_LOGI ("E_XCRN_MSG_ICE_SET_REMOTE_SDP XCRN_CreatePeer PeerId=[%d] s_iPullPeerCount=[%d]\n", iViewerPeerId, s_iPullPeerCount);
+		XCFF_LOGI ("E_XCRN_MSG_ICE_SET_REMOTE_SDP after Create ViewerPeerPeerId=[%d] s_iPullPeerCount=[%d]\n", iViewerPeerId, s_iPullPeerCount);
       }
 	
     }
@@ -190,7 +198,7 @@ int64_t xc_test_CreatePeer(){
 	} while (s_bRun);
 	XCRN_DestroyPeer(s_iAnchorPeerId);
   }
-  else if (create_peer_mode == 3) {
+  else if (create_peer_mode == 3 and max_PullStreamCount>0) {
 	// 创建拉流
     XCFF_LOGI("Create ViewerPeer"); 
     XCRNCreatePeerParam paramPeer = {0};
@@ -201,7 +209,7 @@ int64_t xc_test_CreatePeer(){
     strcpy (paramPeer.szRoomName, RoomId);        /// 连接的房间名称
             
 	int32_t iViewerPeerId = 0;
-	XCFF_LOGI("XCRN_CreatePeer(pullstream).peerid=[%d]=\n", iViewerPeerId);
+	XCFF_LOGI("XCRN_CreatePeer(pullstream).peerid=[%d]\n", iViewerPeerId);
     EXCRNErrno eErrno = XCRN_CreatePeer(&paramPeer, &iViewerPeerId);    
     if (E_XCRN_ERRNO_SUCCESS != eErrno) {
         assert(false);
@@ -209,6 +217,7 @@ int64_t xc_test_CreatePeer(){
     }
     
 	s_iLastPeerId = iViewerPeerId;
+	s_iPullPeerCount++;
 	
     sleep(3000000000);
     XCRN_DestroyPeer(iViewerPeerId);
