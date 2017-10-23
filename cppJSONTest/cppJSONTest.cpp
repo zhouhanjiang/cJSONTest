@@ -1,38 +1,3 @@
-/*
-  Copyright (c) 2009-2017 Dave Gamble and cJSON contributors
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files (the "Software"), to deal
-  in the Software without restriction, including without limitation the rights
-  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  copies of the Software, and to permit persons to whom the Software is
-  furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in
-  all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-  THE SOFTWARE.
-*/
-
-/*
-#ifdef ENABLE_LOCALES
-#include <locale.h>
-#endif
-
-#if defined(_MSC_VER)
-#pragma warning (pop)
-#endif
-#ifdef __GNUC__
-#pragma GCC visibility pop
-#endif
-*/
-
 using namespace std;
 #include <math.h>
 #include <float.h>
@@ -40,21 +5,48 @@ using namespace std;
 #include <iostream>
 #include <fstream>  
 #include <streambuf>
-
+#include "xcrn.h"
+//#include <string.h>
+#include <unistd.h>
+//#include <stdio.h>
+#include <sys/time.h>
+#include <memory>
+#include <assert.h>
+//#include "xc_ffmpeg.h"
 #include "stdafx.h"
+#include "cJSON.h"
+
+#define XCFF_LOGI(...)   printf("info:" __VA_ARGS__); printf("\n"); fflush(stdout);
+#define XCFF_LOGD(...)   printf("debug:" __VA_ARGS__); printf("\n"); fflush(stdout);
+#define XCFF_LOGW(...)   printf("warn:" __VA_ARGS__); printf("\n"); fflush(stdout);
+#define XCFF_LOGE(...)   printf("error:" __VA_ARGS__); printf("\n"); fflush(stdout); assert(0);
+
+//static char  CJSON_FILE_PATH[]="R:/GitHub/cppJSONTest/cjson.json";
+//#define  CJSON_FILE_PATH "/home/zhouhanjiang/XCloud/xc_rtc_native_demo/linux/xc_rtc_native_demo.json"
+#define  CJSON_FILE_PATH "R:/GitHub/cppJSONTest/xc_rtc_native_demo.json"
+//#define CJSON_FILE_PATH "R:/GitLab/xl_thunder_pc_test/xcloud_mediagateway_test/PullStream/Script/xc_rtc_native_demo_push.json"
+#define int32_t int
 
 
 extern "C"
 {
-#include "cJSON.h"
+
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 }
 
-//static char  CJSON_FILE_PATH[]="R:\GitHub\cppJSONTest\cjson.json";
-#define  CJSON_FILE_PATH "R:/GitHub/cppJSONTest/cjson.json"
+int32_t iFrameFps = 15;//帧数
+int32_t iFrameH = 480;//高度
+int32_t iFrameW = 320;//宽度
+int32_t iFrameCaptureWay = 0; //0:渐变色
+char* RoomId = 0; //房间号
+char* SignalServerIp = "127.0.0.1"; //信令服务器IP
+int32_t SignalServerPort = 0;//信令服务器端口
+int32_t max_PullStreamCount = 1;//peer拉流数
+int create_peer_mode = 3; //1:push&pull;2:push;3:pull
+
 
 //读文件
 char* read_string_from_file(char* filename)
@@ -92,7 +84,7 @@ char* read_string_from_file(char* filename)
         exit (3);  
     }  
     /* 现在整个文件已经在buffer中，可由标准输出打印内容 */  
-    //printf("%s", buffer);   
+    //XCFF_LOGD("%s", buffer);   
   
     /* 结束演示，关闭文件并释放内存 */  
     fclose (pFile);  
@@ -108,7 +100,7 @@ char* get_json_value_from_string(char* string,char*  key)
     json = cJSON_Parse(string);  
     if (!json)  
     {  
-        printf("Error before: [%s]\n",cJSON_GetErrorPtr()); 
+        XCFF_LOGI("Error before: [%s]\n",cJSON_GetErrorPtr()); 
 		return value;
     }  
     else  
@@ -119,6 +111,7 @@ char* get_json_value_from_string(char* string,char*  key)
         {  
             // 从valueint中获得结果  
             itoa(json_value->valueint,value,256);
+			//snprintf(value, sizeof(json_value->valueint), "%s", json_value->valueint);
         }  
         else if( json_value->type == cJSON_String)
         {  
@@ -132,18 +125,67 @@ char* get_json_value_from_string(char* string,char*  key)
   
 }
 
+
+void init()
+{
+  /* print the version */
+  XCFF_LOGI("cJSON_Version: %s\n", cJSON_Version());
+  char* json_string = read_string_from_file(CJSON_FILE_PATH);
+  
+  XCFF_LOGI("json_string: %s\n", json_string);
+  char* json_iFrameFps = get_json_value_from_string(json_string,"iFrameFps");
+  XCFF_LOGI("json_iFrameFps(string): %s\n", json_iFrameFps);
+  iFrameFps = atoi(json_iFrameFps);
+  XCFF_LOGI("iFrameFps(int): %d\n", iFrameFps);
+
+  char* json_iFrameH = get_json_value_from_string(json_string,"iFrameH");
+  XCFF_LOGI("json_iFrameH(string): %s\n", json_iFrameH);
+  iFrameH = atoi(json_iFrameH);
+  XCFF_LOGI("iFrameH(int): %d\n", iFrameH);
+  
+  char* json_iFrameW = get_json_value_from_string(json_string,"iFrameW");
+  XCFF_LOGI("json_iFrameW(string): %s\n", json_iFrameW);
+  iFrameW = atoi(json_iFrameW);
+  XCFF_LOGI("iFrameW(int): %d\n", iFrameW);
+
+  char* json_iFrameCaptureWay = get_json_value_from_string(json_string,"iFrameCaptureWay");
+  XCFF_LOGI("json_iFrameCaptureWay(string): %s\n", json_iFrameCaptureWay);
+  iFrameCaptureWay = atoi(json_iFrameCaptureWay);
+  XCFF_LOGI("iFrameCaptureWay(int): %d\n", iFrameCaptureWay);
+  
+  char* json_SignalServerIp = get_json_value_from_string(json_string,"SignalServerIp");
+  XCFF_LOGI("json_SignalServerIp(string): %s\n", json_SignalServerIp);
+  SignalServerIp = json_SignalServerIp;//itoa(json_SignalServerIp);
+  XCFF_LOGI("SignalServerIp(string): %s\n", SignalServerIp);
+
+  char* json_RoomId = get_json_value_from_string(json_string,"RoomId");
+  XCFF_LOGI("json_RoomId(string): %s\n", json_RoomId);
+  RoomId = json_RoomId;
+  XCFF_LOGI("RoomId(string): %s\n", RoomId);
+
+  char* json_SignalServerPort = get_json_value_from_string(json_string,"SignalServerPort");
+  XCFF_LOGI("json_SignalServerPort(string): %s\n", json_SignalServerPort);
+  SignalServerPort = atoi(json_SignalServerPort);
+  XCFF_LOGI("SignalServerPort(int): %d\n", SignalServerPort);
+  
+  char* json_max_PullStreamCount = get_json_value_from_string(json_string,"max_PullStreamCount");
+  XCFF_LOGI("json_max_PullStreamCount(string): %s\n", json_max_PullStreamCount);
+  max_PullStreamCount = atoi(json_max_PullStreamCount);
+  XCFF_LOGI("max_PullStreamCount(int): %d\n", max_PullStreamCount);
+  
+  char* json_create_peer_mode = get_json_value_from_string(json_string,"create_peer_mode");
+  XCFF_LOGI("json_create_peer_mode(string): %s\n", json_create_peer_mode);
+  create_peer_mode = atoi(json_create_peer_mode);
+  XCFF_LOGI("create_peer_mode(int): %d\n", create_peer_mode);
+}
+
 int main(void)
 {
-    /* print the version */
-    printf("cJSON_Version: %s\n", cJSON_Version());
-	char* json_string = read_string_from_file(CJSON_FILE_PATH);
-	printf("json_string: %s\n", json_string);
-    char* json_value = get_json_value_from_string(json_string,"employees");
-	printf("json_value: %s\n", json_value);
-	int int_json_value = atoi(json_value);
-    printf("int_json_value: %d\n", int_json_value);
+    
+    init();
+	
 	/* Now some samplecode for building objects concisely: */
-    //create_objects();    
+    //create_objects();
     return 0;
 }
 

@@ -1,0 +1,10 @@
+{"iFrameFps":"15",
+"iFrameH":"240",
+"iFrameW":"320",
+"iFrameCaptureWay":"0",
+"RoomId":"17001",
+"SignalServerIp":"10.10.200.146",
+"SignalServerPort":"10101",
+"max_PullStreamCount":"1",
+"create_peer_mode":"2"
+}
