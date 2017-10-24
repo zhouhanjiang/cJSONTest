@@ -15,6 +15,7 @@ using namespace std;
 //#include "xc_ffmpeg.h"
 #include "stdafx.h"
 #include "cJSON.h"
+#include <ctime>
 
 #define XCFF_LOGI(...)   printf("info:" __VA_ARGS__); printf("\n"); fflush(stdout);
 #define XCFF_LOGD(...)   printf("debug:" __VA_ARGS__); printf("\n"); fflush(stdout);
@@ -47,6 +48,10 @@ int32_t SignalServerPort = 0;//信令服务器端口
 int32_t max_PullStreamCount = 1;//peer拉流数
 int create_peer_mode = 3; //1:push&pull;2:push;3:pull
 
+std::time_t starttime = std::time(0);
+std::time_t nowtime = std::time(0);
+
+//XCFF_LOGI("time t: [%d]\n",t); 
 
 //读文件
 char* read_string_from_file(char* filename)

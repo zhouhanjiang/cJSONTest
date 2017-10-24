@@ -15,6 +15,7 @@ using namespace std;
 #include "cJSON.h"
 //#include "xc_ffmpeg.h"
 //#include "stdafx.h"
+#include <ctime>
 
 #define XCFF_LOGI(...)   printf("info:" __VA_ARGS__); printf("\n"); fflush(stdout);
 #define XCFF_LOGD(...)   printf("debug:" __VA_ARGS__); printf("\n"); fflush(stdout);
@@ -22,7 +23,7 @@ using namespace std;
 #define XCFF_LOGE(...)   printf("error:" __VA_ARGS__); printf("\n"); fflush(stdout); assert(0);
 
 //static char  CJSON_FILE_PATH[]="R:/GitHub/cppJSONTest/cjson.json";
-#define  CJSON_FILE_PATH "/home/zhouhanjiang/XCloud/xc_rtc_native_demo/linux/xc_rtc_native_demo.json"
+#define  CJSON_FILE_PATH "/home/zhouhanjiang/XCloud/MediaGatewayLongRun/xc_rtc_native_demo.json"
 //#define  CJSON_FILE_PATH "R:/GitHub/cppJSONTest/cjson.json"
 //#define CJSON_FILE_PATH "R:/GitLab/xl_thunder_pc_test/xcloud_mediagateway_test/PullStream/Script/xc_rtc_native_demo_push.json"
 #define int32_t int
@@ -36,6 +37,9 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
 }
+
+std::time_t starttime = std::time(0);
+std::time_t nowtime = std::time(0);
 
 int32_t iFrameFps = 15;//帧数
 int32_t iFrameH = 480;//高度
@@ -60,7 +64,12 @@ uint64_t xc_currentMs()
 }
 
 static void OnMessage(int32_t iPeerId, EXCRNMsg eMsg, uint64_t lparam, uint64_t rparam) {
-  
+  std::time_t nowtime = std::time(0);
+  if (nowtime - starttime < 1)
+  {
+	if (eMsg!=E_XCRN_MSG_ICE_SET_REMOTE_SDP){return;}
+  }
+  else{std::time_t starttime = std::time(0);}
   switch (eMsg) {
     case E_XCRN_MSG_FAIL: {
       EXCRNErrno eErrno = (EXCRNErrno)lparam;
@@ -130,9 +139,9 @@ static void OnMessage(int32_t iPeerId, EXCRNMsg eMsg, uint64_t lparam, uint64_t 
     }
       break;
     case E_XCRN_MSG_VIDEO_ON_FRAME: {
-      XCRNFrameParam* pFrame = (XCRNFrameParam*)lparam;
-      XCFF_LOGI ("E_XCRN_MSG_VIDEO_ON_FRAME PeerId=[%d] [%llu] iW=[%d] iH=[%d] llTimestampUs=[%lld] SignalServerIp=[%s] SignalServerPort=[%d] RoomId=[%s] max_PullStreamCount=[%d] create_peer_mode=[%d]\n",
-        iPeerId, pFrame->ullIndex, pFrame->iW, pFrame->iH, pFrame->llTimestampUs,SignalServerIp,SignalServerPort,RoomId,max_PullStreamCount,create_peer_mode);
+      XCRNFrameParam* pFrame = (XCRNFrameParam*)lparam;      
+	    XCFF_LOGI ("E_XCRN_MSG_VIDEO_ON_FRAME PeerId=[%d] [%llu] iW=[%d] iH=[%d] llTimestampUs=[%lld] SignalServerIp=[%s] SignalServerPort=[%d] RoomId=[%s] max_PullStreamCount=[%d] create_peer_mode=[%d]\n",
+                   iPeerId, pFrame->ullIndex, pFrame->iW, pFrame->iH, pFrame->llTimestampUs,SignalServerIp,SignalServerPort,RoomId,max_PullStreamCount,create_peer_mode);		
     }
       break;
     case E_XCRN_MSG_SIGNAL_EOF: {
