@@ -1,21 +1,27 @@
-using namespace std;
+//using namespace std;
 #include <math.h>
 #include <float.h>
 #include <limits.h>
 #include <iostream>
 #include <fstream>  
 #include <streambuf>
-#include "xcrn.h"
 //#include <string.h>
-#include <unistd.h>
 //#include <stdio.h>
-#include <sys/time.h>
+
 #include <memory>
 #include <assert.h>
 //#include "xc_ffmpeg.h"
 #include "stdafx.h"
 #include "cJSON.h"
 #include <ctime>
+
+#ifdef WIN32
+
+#else
+#include "xcrn.h"
+#include <sys/time.h>
+#include <unistd.h>
+#endif
 
 #define XCFF_LOGI(...)   printf("info:" __VA_ARGS__); printf("\n"); fflush(stdout);
 #define XCFF_LOGD(...)   printf("debug:" __VA_ARGS__); printf("\n"); fflush(stdout);
