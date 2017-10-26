@@ -49,8 +49,8 @@ int32_t iFrameFps = 15;//帧数
 int32_t iFrameH = 480;//高度
 int32_t iFrameW = 320;//宽度
 int32_t iFrameCaptureWay = 0; //0:渐变色
-const char* RoomId = "0"; //房间号
-const char* SignalServerIp = "127.0.0.1"; //信令服务器IP
+std::string RoomId = "0"; //房间号
+std::string SignalServerIp = "127.0.0.1"; //信令服务器IP
 int32_t SignalServerPort = 0;//信令服务器端口
 int32_t max_PullStreamCount = 1;//peer拉流数
 int create_peer_mode = 3; //1:push&pull;2:push;3:pull
@@ -159,13 +159,13 @@ void init()
   
   std::string json_SignalServerIp = get_json_value_from_string(json_string,"SignalServerIp");
   XCFF_LOGI("json_SignalServerIp(string): %s\n", json_SignalServerIp.c_str());  
-  SignalServerIp = json_SignalServerIp.c_str();//itoa(json_SignalServerIp);
-  XCFF_LOGI("SignalServerIp(string): %d\n", SignalServerIp);
+  SignalServerIp = json_SignalServerIp;//itoa(json_SignalServerIp);
+  XCFF_LOGI("SignalServerIp(string): %s\n", SignalServerIp.c_str());
 
   std::string json_RoomId = get_json_value_from_string(json_string,"RoomId");
   XCFF_LOGI("json_RoomId(string): %s\n", json_RoomId.c_str());
-  RoomId = json_RoomId.c_str();
-  XCFF_LOGI("RoomId(string): %s\n", RoomId);
+  RoomId = json_RoomId;
+  XCFF_LOGI("RoomId(string): %s\n", RoomId.c_str());
 
   std::string json_SignalServerPort = get_json_value_from_string(json_string,"SignalServerPort");
   XCFF_LOGI("json_SignalServerPort(string): %s\n", json_SignalServerPort.c_str());
