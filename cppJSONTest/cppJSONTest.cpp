@@ -1,23 +1,26 @@
-//using namespace std;
 #include <math.h>
 #include <float.h>
 #include <limits.h>
 #include <iostream>
 #include <fstream>  
 #include <streambuf>
+#include <string>
+#include <sstream>
+#include <fstream>
 //#include <string.h>
 //#include <stdio.h>
 
 #include <memory>
 #include <assert.h>
 //#include "xc_ffmpeg.h"
-#include "stdafx.h"
 #include "cJSON.h"
 #include <ctime>
 
 #ifdef WIN32
-
+#include "stdafx.h"
+#define  CJSON_FILE_PATH "R:/GitHub/cppJSONTest/xc_rtc_native_demo.json"
 #else
+#define  CJSON_FILE_PATH "/home/zhouhanjiang/XCloud/MediaGatewayLongRun/xc_rtc_native_demo.json"
 #include "xcrn.h"
 #include <sys/time.h>
 #include <unistd.h>
@@ -30,14 +33,12 @@
 
 //static char  CJSON_FILE_PATH[]="R:/GitHub/cppJSONTest/cjson.json";
 //#define  CJSON_FILE_PATH "/home/zhouhanjiang/XCloud/xc_rtc_native_demo/linux/xc_rtc_native_demo.json"
-#define  CJSON_FILE_PATH "R:/GitHub/cppJSONTest/xc_rtc_native_demo.json"
 //#define CJSON_FILE_PATH "R:/GitLab/xl_thunder_pc_test/xcloud_mediagateway_test/PullStream/Script/xc_rtc_native_demo_push.json"
 #define int32_t int
 
 
 extern "C"
 {
-
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,8 +49,8 @@ int32_t iFrameFps = 15;//帧数
 int32_t iFrameH = 480;//高度
 int32_t iFrameW = 320;//宽度
 int32_t iFrameCaptureWay = 0; //0:渐变色
-char* RoomId = 0; //房间号
-char* SignalServerIp = "127.0.0.1"; //信令服务器IP
+const char* RoomId = "0"; //房间号
+const char* SignalServerIp = "127.0.0.1"; //信令服务器IP
 int32_t SignalServerPort = 0;//信令服务器端口
 int32_t max_PullStreamCount = 1;//peer拉流数
 int create_peer_mode = 3; //1:push&pull;2:push;3:pull
@@ -57,58 +58,46 @@ int create_peer_mode = 3; //1:push&pull;2:push;3:pull
 std::time_t starttime = std::time(0);
 std::time_t nowtime = std::time(0);
 
+
+static bool s_bRun = true;
+static int32_t s_iAnchorPeerId = 0;
+static int32_t s_iLastPeerId = 0;
+static int32_t s_iPullPeerCount = 0;
+
 //XCFF_LOGI("time t: [%d]\n",t); 
 
 //读文件
-char* read_string_from_file(char* filename)
+std::string read_string_from_file(const std::string &filename)
 {
-    FILE * pFile;  
-    long lSize;  
-    char * buffer;  	
-    size_t result; 
-	/* 若要一个byte不漏地读入整个文件，只能采用二进制方式打开 */   
-    pFile = fopen (filename, "rb" );  
-    if (pFile==NULL)  
-    {  
-        fputs ("File error",stderr);  
-        exit (1);  
-    }  
-  
-    /* 获取文件大小 */  
-    fseek (pFile , 0 , SEEK_END);  
-    lSize = ftell (pFile);  
-    rewind (pFile);  
-  
-    /* 分配内存存储整个文件 */   
-    buffer = (char*) malloc (sizeof(char)*lSize);  
-    if (buffer == NULL)  
-    {  
-        fputs ("Memory error",stderr);   
-        exit (2);  
-    }  
-  
-    /* 将文件拷贝到buffer中 */  
-    result = fread (buffer,1,lSize,pFile);  
-    if (result != lSize)  
-    {  
-        fputs ("Reading error",stderr);  
-        exit (3);  
-    }  
-    /* 现在整个文件已经在buffer中，可由标准输出打印内容 */  
-    //XCFF_LOGD("%s", buffer);   
-  
-    /* 结束演示，关闭文件并释放内存 */  
-    fclose (pFile);  
-    //free (buffer);  
-    return buffer;      
+	std::string fileContent;
+	std::ifstream fStream(filename.c_str());
+	return std::string ((std::istreambuf_iterator<char>(fStream)), std::istreambuf_iterator<char>()); 
 }
 
-char* get_json_value_from_string(char* string,char*  key)
+template<typename IntT>
+std::string IntToString(IntT value)
 {
-	char* value = "-1";
+	std::ostringstream stream;
+	stream << value;
+	return stream.str();
+}
+
+
+int32_t StringToInt32(const std::string &strInt)
+{
+	int32_t value = 0;
+	std::istringstream stream(strInt);
+	stream >> value;
+	return value;
+}
+
+
+const std::string get_json_value_from_string(const std::string &str,const std::string &key)
+{
+	std::string value = "-1";
 	cJSON *json , *json_value ; 
     // 解析数据包  
-    json = cJSON_Parse(string);  
+    json = cJSON_Parse(str.c_str());  
     if (!json)  
     {  
         XCFF_LOGI("Error before: [%s]\n",cJSON_GetErrorPtr()); 
@@ -117,11 +106,11 @@ char* get_json_value_from_string(char* string,char*  key)
     else  
     {  
         // 解析开关值  
-        json_value = cJSON_GetObjectItem( json , key); 
+		json_value = cJSON_GetObjectItem( json , key.c_str()); 
 		if( json_value->type == cJSON_Number )  
         {  
             // 从valueint中获得结果  
-            itoa(json_value->valueint,value,256);
+			value = IntToString(json_value->valueint);
 			//snprintf(value, sizeof(json_value->valueint), "%s", json_value->valueint);
         }  
         else if( json_value->type == cJSON_String)
@@ -141,52 +130,59 @@ void init()
 {
   /* print the version */
   XCFF_LOGI("cJSON_Version: %s\n", cJSON_Version());
-  char* json_string = read_string_from_file(CJSON_FILE_PATH);
+  std::string json_string = read_string_from_file(CJSON_FILE_PATH);
+  XCFF_LOGI("json_string: %s\n", json_string.c_str());
   
-  XCFF_LOGI("json_string: %s\n", json_string);
-  char* json_iFrameFps = get_json_value_from_string(json_string,"iFrameFps");
-  XCFF_LOGI("json_iFrameFps(string): %s\n", json_iFrameFps);
-  iFrameFps = atoi(json_iFrameFps);
+  std::string json_iFrameFps = get_json_value_from_string(json_string,"iFrameFps");
+  XCFF_LOGI("json_iFrameFps(string): %s\n", json_iFrameFps.c_str());
+  //iFrameFps = atoi(json_iFrameFps);
+  iFrameFps = StringToInt32(json_iFrameFps);
   XCFF_LOGI("iFrameFps(int): %d\n", iFrameFps);
 
-  char* json_iFrameH = get_json_value_from_string(json_string,"iFrameH");
-  XCFF_LOGI("json_iFrameH(string): %s\n", json_iFrameH);
-  iFrameH = atoi(json_iFrameH);
+  std::string json_iFrameH = get_json_value_from_string(json_string,"iFrameH");
+  XCFF_LOGI("json_iFrameH(string): %s\n", json_iFrameH.c_str());
+  //iFrameH = atoi(json_iFrameH);
+  iFrameH = StringToInt32(json_iFrameH);
   XCFF_LOGI("iFrameH(int): %d\n", iFrameH);
   
-  char* json_iFrameW = get_json_value_from_string(json_string,"iFrameW");
-  XCFF_LOGI("json_iFrameW(string): %s\n", json_iFrameW);
-  iFrameW = atoi(json_iFrameW);
+  std::string json_iFrameW = get_json_value_from_string(json_string,"iFrameW");
+  XCFF_LOGI("json_iFrameW(string): %s\n", json_iFrameW.c_str());
+  //iFrameW = atoi(json_iFrameW);
+  iFrameW = StringToInt32(json_iFrameW);
   XCFF_LOGI("iFrameW(int): %d\n", iFrameW);
 
-  char* json_iFrameCaptureWay = get_json_value_from_string(json_string,"iFrameCaptureWay");
-  XCFF_LOGI("json_iFrameCaptureWay(string): %s\n", json_iFrameCaptureWay);
-  iFrameCaptureWay = atoi(json_iFrameCaptureWay);
+  std::string json_iFrameCaptureWay = get_json_value_from_string(json_string,"iFrameCaptureWay");
+  XCFF_LOGI("json_iFrameCaptureWay(string): %s\n", json_iFrameCaptureWay.c_str());
+  //iFrameCaptureWay = atoi(json_iFrameCaptureWay);
+  iFrameCaptureWay = StringToInt32(json_iFrameCaptureWay);
   XCFF_LOGI("iFrameCaptureWay(int): %d\n", iFrameCaptureWay);
   
-  char* json_SignalServerIp = get_json_value_from_string(json_string,"SignalServerIp");
-  XCFF_LOGI("json_SignalServerIp(string): %s\n", json_SignalServerIp);
-  SignalServerIp = json_SignalServerIp;//itoa(json_SignalServerIp);
-  XCFF_LOGI("SignalServerIp(string): %s\n", SignalServerIp);
+  std::string json_SignalServerIp = get_json_value_from_string(json_string,"SignalServerIp");
+  XCFF_LOGI("json_SignalServerIp(string): %s\n", json_SignalServerIp.c_str());  
+  SignalServerIp = json_SignalServerIp.c_str();//itoa(json_SignalServerIp);
+  XCFF_LOGI("SignalServerIp(string): %d\n", SignalServerIp);
 
-  char* json_RoomId = get_json_value_from_string(json_string,"RoomId");
-  XCFF_LOGI("json_RoomId(string): %s\n", json_RoomId);
-  RoomId = json_RoomId;
+  std::string json_RoomId = get_json_value_from_string(json_string,"RoomId");
+  XCFF_LOGI("json_RoomId(string): %s\n", json_RoomId.c_str());
+  RoomId = json_RoomId.c_str();
   XCFF_LOGI("RoomId(string): %s\n", RoomId);
 
-  char* json_SignalServerPort = get_json_value_from_string(json_string,"SignalServerPort");
-  XCFF_LOGI("json_SignalServerPort(string): %s\n", json_SignalServerPort);
-  SignalServerPort = atoi(json_SignalServerPort);
+  std::string json_SignalServerPort = get_json_value_from_string(json_string,"SignalServerPort");
+  XCFF_LOGI("json_SignalServerPort(string): %s\n", json_SignalServerPort.c_str());
+  //SignalServerPort = atoi(json_SignalServerPort);
+  SignalServerPort = StringToInt32(json_SignalServerPort);
   XCFF_LOGI("SignalServerPort(int): %d\n", SignalServerPort);
   
-  char* json_max_PullStreamCount = get_json_value_from_string(json_string,"max_PullStreamCount");
-  XCFF_LOGI("json_max_PullStreamCount(string): %s\n", json_max_PullStreamCount);
-  max_PullStreamCount = atoi(json_max_PullStreamCount);
+  std::string json_max_PullStreamCount = get_json_value_from_string(json_string,"max_PullStreamCount");
+  XCFF_LOGI("json_max_PullStreamCount(string): %s\n", json_max_PullStreamCount.c_str());
+  //max_PullStreamCount = atoi(json_max_PullStreamCount);
+  max_PullStreamCount = StringToInt32(json_max_PullStreamCount);
   XCFF_LOGI("max_PullStreamCount(int): %d\n", max_PullStreamCount);
   
-  char* json_create_peer_mode = get_json_value_from_string(json_string,"create_peer_mode");
-  XCFF_LOGI("json_create_peer_mode(string): %s\n", json_create_peer_mode);
-  create_peer_mode = atoi(json_create_peer_mode);
+  std::string json_create_peer_mode = get_json_value_from_string(json_string,"create_peer_mode");
+  XCFF_LOGI("json_create_peer_mode(string): %s\n", json_create_peer_mode.c_str());
+  //create_peer_mode = atoi(json_create_peer_mode);
+  create_peer_mode = StringToInt32(json_create_peer_mode);
   XCFF_LOGI("create_peer_mode(int): %d\n", create_peer_mode);
 }
 
